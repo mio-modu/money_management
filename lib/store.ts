@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { mergeAlerts } from './agent/engine'
 import { adapter, hasSupabase } from './data'
 import { blankDB } from './data/local'
-import { thisMonth, today } from './date'
+import { daysAgo, thisMonth, today } from './date'
 import type {
   Account,
   Alert,
@@ -50,6 +50,8 @@ interface State {
   setReserve: (month: string, reserved: number, required: number, businessIncome: number) => Promise<void>
   toggleRoutine: (kind: string, item: string, period: string) => Promise<void>
 
+  /** 60일 이상 미사용 구독을 zombie 로 자동 태깅한다 */
+  syncSubscriptions: () => Promise<void>
   markAlertDone: (id: string) => Promise<void>
   dismissAlert: (id: string) => Promise<void>
   refreshAgent: () => Promise<void>
@@ -178,6 +180,18 @@ export const useStore = create<State>((set, get) => ({
     }
   },
 
+  async syncSubscriptions() {
+    const { db } = get()
+    const limit = db.rules.find((r) => r.code === 'ZOMBIE_SUB')?.params?.days ?? 60
+    const now = new Date()
+    for (const s of db.subscriptions) {
+      if (s.status === 'cancelled') continue
+      const unused = s.last_used_at ? daysAgo(s.last_used_at, now) : null
+      const next = unused !== null && unused >= limit ? 'zombie' : 'active'
+      if (s.status !== next) await get().patch('subscriptions', s.id, { status: next })
+    }
+  },
+
   async markAlertDone(id) {
     await get().patch('alerts', id, { action_taken: true })
   },
@@ -187,6 +201,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async refreshAgent() {
+    await get().syncSubscriptions()
     const { db } = get()
     const { alerts } = mergeAlerts(db, new Date())
     const changed =

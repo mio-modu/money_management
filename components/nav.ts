@@ -6,6 +6,7 @@ import {
   IconHome,
   IconPie,
   IconPlus,
+  IconRepeat,
   IconSettings,
 } from '@/components/icons'
 
@@ -30,6 +31,7 @@ export const TABS: NavItem[] = [
 /** "더보기" 시트. 구현된 화면만 올린다. */
 export const MORE: NavItem[] = [
   { href: '/budget', label: '예산', desc: '카테고리별 계획과 소진 속도', Icon: IconPie },
+  { href: '/subscriptions', label: '구독 관리', desc: '연간 환산 · 좀비 구독 정리', Icon: IconRepeat },
   { href: '/monthly', label: '월간 결산', desc: '순자산 변동 · TOP5 · 다음 달 예산', Icon: IconCheckSquare },
   { href: '/alerts', label: '알림 기록', desc: '에이전트가 남긴 경고 전체', Icon: IconBell },
   { href: '/settings', label: '설정', desc: '세율 · 규칙 · PIN · 더미 데이터', Icon: IconSettings },
