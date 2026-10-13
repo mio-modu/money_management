@@ -90,7 +90,12 @@ export function liquidCash(db: DB) {
  * 저축액(수입−지출)을 거꾸로 빼서 역산한다. 추세를 보는 용도다.
  */
 export function netWorthSeries(db: DB, months = 12): { month: string; value: number }[] {
-  const keys = lastMonths(months)
+  // 기록이 없는 달까지 그리면 평평한 직선이 앞에 붙어 추세를 오해하게 만든다.
+  const first = db.transactions.reduce<string | null>(
+    (min, t) => (min === null || t.date < min ? t.date : min),
+    null,
+  )
+  const keys = lastMonths(months).filter((m) => !first || m >= first.slice(0, 7))
   const now = netWorth(db)
   const out: { month: string; value: number }[] = []
   let running = now
@@ -133,12 +138,17 @@ export interface CategoryTotal {
 }
 
 /** 소분류 기준 합계 (지출만). */
-export function categoryTotals(db: DB, month: string, opts?: { business?: boolean }): CategoryTotal[] {
+export function categoryTotals(
+  db: DB,
+  month: string,
+  opts?: { business?: boolean; fixed?: boolean },
+): CategoryTotal[] {
   const map = categoryMap(db)
   const acc: Record<string, CategoryTotal> = {}
   for (const t of monthTx(db, month)) {
     if (t.direction !== 'out') continue
     if (opts?.business !== undefined && t.is_business !== opts.business) continue
+    if (opts?.fixed !== undefined && t.is_fixed !== opts.fixed) continue
     const id = t.category_id ?? 'c-etc-unknown'
     const c = map[id]
     acc[id] ||= {
@@ -322,8 +332,11 @@ export function safePlan(db: DB, month = thisMonth()): SafePlan {
   const irregular = db.settings.irregular_income
   const series = flowSeries(db, 6, shiftMonth(month, -1))
   const incomes = series.map((f) => f.income).filter((v) => v > 0)
+  const recent = series.slice(-3).map((f) => f.income).filter((v) => v > 0)
+  // 6개월 중앙값이 기본이되, 최근 3개월이 더 낮으면 낮은 쪽을 쓴다.
+  // 수입이 꺾인 직후에는 6개월 중앙값이 아직 좋았던 달에 걸려 있어서 "안전"하지 않다.
   const baseIncome = irregular
-    ? median(incomes)
+    ? Math.min(median(incomes) || Infinity, median(recent) || Infinity) || 0
     : (incomes.length ? incomes[incomes.length - 1] : 0) || median(incomes)
 
   const fixedAvg = avg(series.slice(-3).map((f) => f.fixed))
@@ -522,4 +535,98 @@ export function emergencyMonths(db: DB): number {
   const m = avgMonthlyExpense(db)
   if (!m) return 0
   return liquidCash(db) / m
+}
+
+/**
+ * 다음 달 예산 자동 제안.
+ * 최근 3개월 "중앙값"을 쓴다 — 한 달 크게 쓴 것이 다음 달 예산을 부풀리지 않게.
+ * 제안일 뿐이고 사용자가 고칠 수 있어야 한다.
+ */
+export interface BudgetSuggestion {
+  categoryId: string
+  name: string
+  icon: string
+  grade: Grade
+  /** 최근 3개월 중앙값 */
+  suggested: number
+  /** 이미 잡혀 있는 예산 */
+  current: number | null
+  months: number[]
+}
+
+export function suggestBudgets(db: DB, targetMonth: string, lookback = 3): BudgetSuggestion[] {
+  const map = categoryMap(db)
+  const keys = lastMonths(lookback, shiftMonth(targetMonth, -1))
+  const perCategory: Record<string, number[]> = {}
+
+  for (const m of keys) {
+    // 예산으로 통제할 수 있는 것은 변동·개인 지출뿐이다.
+    // 월세·보험 같은 고정비를 예산에 넣어 봐야 "지켰다/못 지켰다"가 의미 없다.
+    const totals = categoryTotals(db, m, { fixed: false, business: false })
+    const seen = new Set<string>()
+    for (const t of totals) {
+      ;(perCategory[t.categoryId] ||= []).push(t.amount)
+      seen.add(t.categoryId)
+    }
+    // 그 달에 안 쓴 카테고리는 0으로 채워야 중앙값이 부풀지 않는다.
+    for (const id of Object.keys(perCategory)) {
+      if (!seen.has(id)) perCategory[id].push(0)
+    }
+  }
+
+  return Object.entries(perCategory)
+    .map(([id, values]) => {
+      const c = map[id]
+      const existing = db.budgets.find((b) => b.month === targetMonth && b.category_id === id)
+      return {
+        categoryId: id,
+        name: c?.name ?? '분류 안 됨',
+        icon: c?.icon ?? '❓',
+        grade: c?.grade ?? ('want' as Grade),
+        suggested: Math.round(median(values) / 1000) * 1000,
+        current: existing ? existing.planned : null,
+        months: values,
+      }
+    })
+    .filter((s) => s.suggested > 0)
+    .sort((a, b) => b.suggested - a.suggested)
+}
+
+/** 월간 결산용 한 덩어리. */
+export interface MonthlyReport {
+  month: string
+  flow: MonthFlow
+  prevFlow: MonthFlow
+  netWorthNow: number
+  netWorthPrev: number
+  top: CategoryTotal[]
+  deltas: ReturnType<typeof categoryDeltas>
+  mix: GradeMix
+  prevMix: GradeMix
+  noSpendDays: number
+  budgetKept: { kept: number; total: number }
+}
+
+export function monthlyReport(db: DB, month: string): MonthlyReport {
+  const series = netWorthSeries(db, 24)
+  const idx = series.findIndex((s) => s.month === month)
+  const lines = budgetLines(db, month)
+  const spentDays = new Set(
+    db.transactions.filter((t) => t.direction === 'out' && !t.is_business && inMonth(t, month)).map((t) => t.date),
+  )
+  // 진행 중인 달은 아직 오지 않은 날을 무지출일로 세면 안 된다.
+  const elapsed = month === thisMonth() ? new Date().getDate() : daysInMonth(month)
+  return {
+    month,
+    flow: monthFlow(db, month),
+    prevFlow: monthFlow(db, shiftMonth(month, -1)),
+    netWorthNow: idx >= 0 ? series[idx].value : netWorth(db),
+    netWorthPrev: idx > 0 ? series[idx - 1].value : netWorth(db),
+    top: categoryTotals(db, month).slice(0, 5),
+    deltas: categoryDeltas(db, month, 5),
+    mix: gradeMix(db, month),
+    prevMix: gradeMix(db, shiftMonth(month, -1)),
+    noSpendDays: Math.max(0, elapsed - spentDays.size),
+    budgetKept: { kept: lines.filter((l) => l.remain >= 0).length, total: lines.length },
+  }
 }

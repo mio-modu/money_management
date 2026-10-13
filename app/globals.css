@@ -17,6 +17,16 @@
     --danger: 0 72% 58%;
     --warn: 38 92% 56%;
     --good: 142 60% 48%;
+
+    /* 차트 색. 다크/라이트 각각 따로 고른 값이다 — 밝기를 뒤집기만 하면 안 읽힌다.
+       색맹 분리도(ΔE)와 표면 대비를 검증해서 통과한 조합만 썼다. */
+    --viz-in: #199e70;
+    --viz-out: #3987e5;
+    --viz-need: #3987e5;
+    --viz-want: #c98500;
+    --viz-waste: #d55181;
+    --viz-grid: hsl(240 5% 22%);
+    --viz-axis: hsl(240 5% 50%);
   }
 
   .light {
@@ -32,6 +42,14 @@
     --danger: 0 68% 48%;
     --warn: 32 88% 42%;
     --good: 142 56% 34%;
+
+    --viz-in: #1baf7a;
+    --viz-out: #2a78d6;
+    --viz-need: #2a78d6;
+    --viz-want: #eda100;
+    --viz-waste: #e87ba4;
+    --viz-grid: hsl(240 10% 90%);
+    --viz-axis: hsl(240 5% 45%);
   }
 
   * {
