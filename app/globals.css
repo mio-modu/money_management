@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 다크가 기본이다. 색은 적게, 대비는 확실하게. */
+    --bg: 240 6% 7%;
+    --surface: 240 5% 11%;
+    --surface-2: 240 5% 15%;
+    --line: 240 5% 20%;
+    --fg: 240 10% 96%;
+    --muted: 240 5% 64%;
+    --faint: 240 4% 44%;
+    --accent: 172 66% 50%;
+    --accent-fg: 240 10% 8%;
+    --danger: 0 72% 58%;
+    --warn: 38 92% 56%;
+    --good: 142 60% 48%;
+  }
+
+  .light {
+    --bg: 240 20% 99%;
+    --surface: 0 0% 100%;
+    --surface-2: 240 14% 96%;
+    --line: 240 10% 88%;
+    --fg: 240 10% 12%;
+    --muted: 240 5% 40%;
+    --faint: 240 5% 56%;
+    --accent: 172 62% 36%;
+    --accent-fg: 0 0% 100%;
+    --danger: 0 68% 48%;
+    --warn: 32 88% 42%;
+    --good: 142 56% 34%;
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-bg text-fg antialiased;
+    font-feature-settings: 'tnum' 1, 'ss01' 1;
+    /* 홈 화면에 설치했을 때 아래 제스처 바에 가리지 않게 */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 금액 가리기 토글이 켜지면 모든 금액을 블러로 덮는다. */
+  .amounts-hidden .amount {
+    filter: blur(7px);
+    user-select: none;
+  }
+
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
