@@ -61,10 +61,27 @@ export default function Dashboard() {
           }
         />
         <BigNumber
-          label={sp.basedOn === 'budget' ? '이번 달 쓸 수 있는 남은 돈' : '이번 달 안전하게 쓸 수 있는 돈'}
-          value={sp.remain}
-          tone={sp.remain < 0 ? 'danger' : sp.paceGapPp > 20 ? 'warn' : 'good'}
+          label={
+            sp.budget <= 0
+              ? '이번 달 쓸 수 있는 돈'
+              : sp.basedOn === 'budget'
+                ? '이번 달 쓸 수 있는 남은 돈'
+                : '이번 달 안전하게 쓸 수 있는 돈'
+          }
+          value={sp.budget <= 0 ? 0 : sp.remain}
+          tone={
+            sp.budget <= 0
+              ? 'neutral'
+              : sp.remain < 0
+                ? 'danger'
+                : sp.paceGapPp > 20
+                  ? 'warn'
+                  : 'good'
+          }
           note={
+            sp.budget <= 0 ? (
+              <span>수입을 한 건 넣거나 예산을 잡으면 여기서 계산된다</span>
+            ) : (
             <span>
               {sp.remain < 0 ? (
                 <>
@@ -85,6 +102,7 @@ export default function Dashboard() {
                 </>
               ) : null}
             </span>
+            )
           }
           right={
             <Link href="/budget" className="text-[11px] text-faint hover:text-muted">
@@ -99,26 +117,42 @@ export default function Dashboard() {
               근거 보기 →
             </Link>
           </div>
-          <div className="mt-1 flex items-end gap-2">
-            <span className="tnum text-[32px] font-bold leading-none tracking-tight">
-              {score.total}
-              <span className="ml-0.5 text-[16px] font-semibold text-faint">/100</span>
-            </span>
-            <Pill
-              className="mb-1"
-              tone={score.total >= 65 ? 'good' : score.total >= 50 ? 'warn' : 'danger'}
-            >
-              {score.grade}
-            </Pill>
-          </div>
-          <Progress
-            className="mt-2.5"
-            value={score.total}
-            tone={score.total >= 65 ? 'good' : score.total >= 50 ? 'warn' : 'danger'}
-          />
-          <p className="mt-1.5 text-[11px] text-faint">
-            가장 낮은 항목: {weakest(score)}
-          </p>
+          {score.insufficient ? (
+            <>
+              <div className="mt-1 flex items-end gap-2">
+                <span className="tnum text-[32px] font-bold leading-none tracking-tight text-faint">—</span>
+                <Pill className="mb-1" tone="muted">
+                  계산 전
+                </Pill>
+              </div>
+              <Progress className="mt-2.5" value={0} />
+              <p className="mt-1.5 text-[11px] leading-snug text-faint">
+                거래 {db.transactions.length}건. 5건부터 계산한다 — 기록이 없으면 부채 0점 같은 항목만
+                점수를 올려 실제보다 좋게 나온다.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mt-1 flex items-end gap-2">
+                <span className="tnum text-[32px] font-bold leading-none tracking-tight">
+                  {score.total}
+                  <span className="ml-0.5 text-[16px] font-semibold text-faint">/100</span>
+                </span>
+                <Pill
+                  className="mb-1"
+                  tone={score.total >= 65 ? 'good' : score.total >= 50 ? 'warn' : 'danger'}
+                >
+                  {score.grade}
+                </Pill>
+              </div>
+              <Progress
+                className="mt-2.5"
+                value={score.total}
+                tone={score.total >= 65 ? 'good' : score.total >= 50 ? 'warn' : 'danger'}
+              />
+              <p className="mt-1.5 text-[11px] text-faint">가장 낮은 항목: {weakest(score)}</p>
+            </>
+          )}
         </div>
       </Card>
 

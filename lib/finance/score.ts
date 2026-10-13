@@ -30,6 +30,8 @@ export interface HealthScore {
   total: number
   grade: '위험' | '주의' | '보통' | '양호' | '우수'
   parts: ScorePart[]
+  /** 판정할 기록이 아직 모자란다. 이때 total 은 의미가 없다. */
+  insufficient: boolean
 }
 
 /**
@@ -46,7 +48,10 @@ export function healthScore(db: DB, month = thisMonth()): HealthScore {
     logging(db),
   ]
   const total = Math.round(sum(parts.map((p) => p.score)))
-  return { total, grade: gradeOf(total), parts }
+  // 거래가 없으면 "부채 0 = 만점" 같은 항목만 점수를 올려 실제보다 좋게 나온다.
+  // 그 숫자를 보여 주느니 아직 모른다고 말하는 게 맞다.
+  const insufficient = db.transactions.length < 5
+  return { total, grade: gradeOf(total), parts, insufficient }
 }
 
 function gradeOf(total: number): HealthScore['grade'] {

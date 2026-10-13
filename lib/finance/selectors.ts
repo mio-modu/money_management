@@ -335,9 +335,14 @@ export function safePlan(db: DB, month = thisMonth()): SafePlan {
   const recent = series.slice(-3).map((f) => f.income).filter((v) => v > 0)
   // 6개월 중앙값이 기본이되, 최근 3개월이 더 낮으면 낮은 쪽을 쓴다.
   // 수입이 꺾인 직후에는 6개월 중앙값이 아직 좋았던 달에 걸려 있어서 "안전"하지 않다.
+  const medianAll = median(incomes)
+  const medianRecent = median(recent)
+  const candidates = [medianAll, medianRecent].filter((v) => v > 0)
   const baseIncome = irregular
-    ? Math.min(median(incomes) || Infinity, median(recent) || Infinity) || 0
-    : (incomes.length ? incomes[incomes.length - 1] : 0) || median(incomes)
+    ? candidates.length
+      ? Math.min(...candidates)
+      : 0
+    : (incomes.length ? incomes[incomes.length - 1] : 0) || medianAll
 
   const fixedAvg = avg(series.slice(-3).map((f) => f.fixed))
   const bizIncome = monthFlow(db, month).businessIncome
@@ -425,15 +430,18 @@ export function spendable(db: DB, month = thisMonth(), now = new Date()): Spenda
 
 /** 무지출일 연속 기록. 오늘은 아직 끝나지 않았으므로 어제부터 센다. */
 export function noSpendStreak(db: DB, now = new Date()): number {
-  const spentDays = new Set(
-    db.transactions.filter((t) => t.direction === 'out' && !t.is_business).map((t) => t.date),
-  )
+  const outs = db.transactions.filter((t) => t.direction === 'out' && !t.is_business)
+  // 기록이 아예 없는 것은 안 쓴 게 아니라 안 적은 것이다. 400일 연속이라고 말하면 안 된다.
+  if (outs.length === 0) return 0
+  const spentDays = new Set(outs.map((t) => t.date))
+  // 첫 기록보다 앞선 날은 세지 않는다.
+  const first = outs.reduce((min, t) => (t.date < min ? t.date : min), outs[0].date)
   let streak = 0
   const d = new Date(now)
   d.setDate(d.getDate() - 1)
   for (let i = 0; i < 400; i++) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    if (spentDays.has(key)) break
+    if (key < first || spentDays.has(key)) break
     streak++
     d.setDate(d.getDate() - 1)
   }

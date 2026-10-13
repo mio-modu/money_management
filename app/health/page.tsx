@@ -35,16 +35,28 @@ export default function HealthPage() {
       <Card>
         <CardBody>
           <p className="text-[12px] font-medium text-muted">재정 건강 점수</p>
+          {score.insufficient ? (
+            <p className="mt-2 rounded-md bg-surface-2 p-2.5 text-[12px] leading-relaxed text-muted">
+              거래가 {db.transactions.length}건뿐이라 아직 점수를 내놓지 않는다. 기록이 없으면
+              &quot;부채 없음 = 만점&quot; 같은 항목만 점수를 올려 실제보다 좋게 나온다.
+              아래 항목별 계산은 지금 데이터 기준이며, 5건이 쌓이면 총점이 붙는다.
+            </p>
+          ) : null}
           <div className="mt-1 flex items-end gap-2">
-            <span className="tnum text-[40px] font-bold leading-none tracking-tight">
-              {score.total}
+            <span
+              className={cn(
+                'tnum text-[40px] font-bold leading-none tracking-tight',
+                score.insufficient && 'text-faint',
+              )}
+            >
+              {score.insufficient ? '—' : score.total}
               <span className="ml-0.5 text-[18px] font-semibold text-faint">/100</span>
             </span>
-            <Pill className="mb-1.5" tone={tone}>
-              {score.grade}
+            <Pill className="mb-1.5" tone={score.insufficient ? 'muted' : tone}>
+              {score.insufficient ? '계산 전' : score.grade}
             </Pill>
           </div>
-          <Progress className="mt-3" value={score.total} tone={tone} />
+          <Progress className="mt-3" value={score.insufficient ? 0 : score.total} tone={tone} />
           <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
             점수만 보여 주면 아무 의미가 없다. 아래 여섯 항목이 각각 몇 점인지, 왜 그 점수인지,
             올리려면 뭘 해야 하는지까지 펼쳐 볼 수 있다.
