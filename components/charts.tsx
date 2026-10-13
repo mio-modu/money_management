@@ -103,10 +103,10 @@ export function FlowBars({
   return (
     <>
       <Frame height={height}>
-        <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: -18 }} barGap={2}>
+        <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: -10 }} barGap={2}>
           <CartesianGrid stroke={VIZ.grid} vertical={false} />
           <XAxis dataKey="month" tickFormatter={MONTH_LABEL} {...axisProps} />
-          <YAxis tickFormatter={(v: number) => shortWon(v)} width={52} {...axisProps} />
+          <YAxis tickFormatter={(v: number) => shortWon(v)} width={58} {...axisProps} />
           <Tooltip
             cursor={{ fill: 'rgba(127,127,140,0.12)' }}
             content={({ active, payload, label }) =>
@@ -141,10 +141,10 @@ export function FixedVariableBars({
   return (
     <>
       <Frame height={height}>
-        <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: -18 }}>
+        <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: -10 }}>
           <CartesianGrid stroke={VIZ.grid} vertical={false} />
           <XAxis dataKey="month" tickFormatter={MONTH_LABEL} {...axisProps} />
-          <YAxis tickFormatter={(v: number) => shortWon(v)} width={52} {...axisProps} />
+          <YAxis tickFormatter={(v: number) => shortWon(v)} width={58} {...axisProps} />
           <Tooltip
             cursor={{ fill: 'rgba(127,127,140,0.12)' }}
             content={({ active, payload, label }) =>
@@ -180,10 +180,10 @@ export function TrendLine({
 }) {
   return (
     <Frame height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 10, bottom: 0, left: -18 }}>
+      <LineChart data={data} margin={{ top: 8, right: 10, bottom: 0, left: -10 }}>
         <CartesianGrid stroke={VIZ.grid} vertical={false} />
         <XAxis dataKey="month" tickFormatter={MONTH_LABEL} {...axisProps} />
-        <YAxis tickFormatter={(v: number) => shortWon(v)} width={52} {...axisProps} />
+        <YAxis tickFormatter={(v: number) => shortWon(v)} width={58} {...axisProps} />
         {zeroLine ? <ReferenceLine y={0} stroke={VIZ.axis} strokeDasharray="3 3" /> : null}
         <Tooltip
           content={({ active, payload, label }) =>
@@ -391,5 +391,68 @@ export function MiniBars({
         </div>
       ))}
     </div>
+  )
+}
+
+// ── 부채 상환 시뮬레이션 비교 ───────────────────────────────
+export function PayoffCompare({
+  snowball,
+  avalanche,
+  height = 190,
+}: {
+  snowball: { month: number; balance: number }[]
+  avalanche: { month: number; balance: number }[]
+  height?: number
+}) {
+  const len = Math.max(snowball.length, avalanche.length)
+  const data = Array.from({ length: len }, (_, i) => ({
+    month: i,
+    snowball: snowball[i]?.balance ?? 0,
+    avalanche: avalanche[i]?.balance ?? 0,
+  }))
+  return (
+    <>
+      <Frame height={height}>
+        <LineChart data={data} margin={{ top: 8, right: 10, bottom: 0, left: -4 }}>
+          <CartesianGrid stroke={VIZ.grid} vertical={false} />
+          <XAxis
+            dataKey="month"
+            interval={5}
+            tickFormatter={(v: number) => (v === 0 ? '지금' : v % 12 === 0 ? `${v / 12}년` : `${v}개월`)}
+            {...axisProps}
+          />
+          <YAxis tickFormatter={(v: number) => shortWon(v)} width={58} {...axisProps} />
+          <Tooltip
+            content={({ active, payload, label }) =>
+              active && payload?.length ? (
+                <Box
+                  title={`${label}개월 뒤`}
+                  rows={[
+                    { color: VIZ.want, label: '눈덩이', value: `${won(Number(payload[0]?.value ?? 0))}원` },
+                    { color: VIZ.in, label: '눈사태', value: `${won(Number(payload[1]?.value ?? 0))}원` },
+                  ]}
+                />
+              ) : null
+            }
+          />
+          {/* 두 선은 대개 거의 겹친다. 점선인 눈덩이를 위에 그려야 겹친 구간이 보인다. */}
+          <Line type="monotone" dataKey="avalanche" stroke={VIZ.in} strokeWidth={2.5} dot={false} />
+          <Line
+            type="monotone"
+            dataKey="snowball"
+            stroke={VIZ.want}
+            strokeWidth={2}
+            strokeDasharray="6 5"
+            dot={false}
+          />
+        </LineChart>
+      </Frame>
+      <Legend
+        items={[
+          { color: VIZ.want, label: '눈덩이 (점선 · 작은 잔액부터)' },
+          { color: VIZ.in, label: '눈사태 (높은 이자부터)' },
+        ]}
+      />
+    </>
   )
 }
