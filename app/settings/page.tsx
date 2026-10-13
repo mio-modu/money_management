@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { IconCheck, IconDownload, IconRefresh, IconTrash } from '@/components/icons'
+import { useEffect, useRef, useState } from 'react'
+import { IconBell, IconCheck, IconDownload, IconRefresh, IconTrash } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHead, Row } from '@/components/ui/card'
 import { Field, Pill, inputClass } from '@/components/ui/bits'
 import { blankDB } from '@/lib/data/local'
+import { askNotifyPermission, notifyState } from '@/lib/notify'
 import { demoDB } from '@/lib/demo'
 import { RULES } from '@/lib/agent/rules'
 import { useStore } from '@/lib/store'
@@ -20,6 +21,11 @@ export default function SettingsPage() {
   const patch = useStore((s) => s.patch)
   const fileRef = useRef<HTMLInputElement>(null)
   const [pin, setPin] = useState(db.settings.pin ?? '')
+  const [notifyPerm, setNotifyPerm] = useState<string>('unsupported')
+
+  useEffect(() => {
+    setNotifyPerm(notifyState())
+  }, [])
   const [note, setNote] = useState<string | null>(null)
 
   function flash(msg: string) {
@@ -149,6 +155,35 @@ export default function SettingsPage() {
         </CardBody>
       </Card>
 
+      {/* ── 알림 ────────────────────────────────── */}
+      <Card>
+        <CardHead title="알림" sub="앱을 열었을 때 가장 급한 경고 하나만 띄운다" />
+        <CardBody className="space-y-2 pt-2">
+          <p className="text-[12px] leading-relaxed text-muted">
+            권한 상태: <b className="text-fg">{NOTIFY_LABEL[notifyPerm] ?? notifyPerm}</b>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={notifyPerm !== 'default'}
+              onClick={async () => {
+                const next = await askNotifyPermission()
+                setNotifyPerm(next)
+                flash(next === 'granted' ? '알림을 켰다' : '알림 권한이 없다')
+              }}
+            >
+              <IconBell width={15} height={15} /> 알림 권한 요청
+            </Button>
+          </div>
+          <p className="text-[11px] leading-relaxed text-faint">
+            앱이 닫혀 있을 때 오는 진짜 푸시는 푸시 서버와 VAPID 키가 필요해서 아직 넣지 않았다.
+            지금은 홈 화면에 설치한 앱을 열 때, 그리고 열어 둔 채 자정이 지날 때 규칙이 다시 돌고
+            가장 급한 경고 하나를 알린다. 같은 경고는 두 번 띄우지 않는다.
+          </p>
+        </CardBody>
+      </Card>
+
       {/* ── 규칙 ────────────────────────────────── */}
       <Card>
         <CardHead title="규칙 엔진" sub="끈 규칙은 평가하지 않는다. 임계값도 바꿀 수 있다." />
@@ -265,6 +300,13 @@ export default function SettingsPage() {
       </p>
     </div>
   )
+}
+
+const NOTIFY_LABEL: Record<string, string> = {
+  granted: '허용됨',
+  denied: '차단됨 — 브라우저 설정에서 풀어야 한다',
+  default: '아직 묻지 않음',
+  unsupported: '이 브라우저는 알림을 지원하지 않는다',
 }
 
 const PARAM_LABEL: Record<string, string> = {

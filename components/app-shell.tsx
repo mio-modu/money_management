@@ -16,6 +16,7 @@ import {
 import { useStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { LockScreen } from '@/components/lock-screen'
+import { notifyTopAlert } from '@/lib/notify'
 import { MORE, TABS } from '@/components/nav'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void init()
   }, [init])
+
+  // 서비스 워커 — 지하철에서도 입력 화면은 열려야 한다.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onLoad = () => navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+    if (document.readyState === 'complete') onLoad()
+    else window.addEventListener('load', onLoad)
+    return () => window.removeEventListener('load', onLoad)
+  }, [])
+
+  // 규칙은 매일 자정에 다시 돈다. 앱을 열어 둔 채 날짜가 바뀌어도 평가가 갱신되게 한다.
+  useEffect(() => {
+    if (!ready) return
+    const schedule = () => {
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 30, 0)
+      return window.setTimeout(async () => {
+        await useStore.getState().refreshAgent()
+        timer = schedule()
+      }, midnight.getTime() - now.getTime())
+    }
+    let timer = schedule()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void useStore.getState().refreshAgent()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [ready])
+
+  // 앱을 열었을 때 가장 급한 경고 하나만 알린다.
+  useEffect(() => {
+    if (!ready) return
+    const alerts = useStore.getState().db.alerts
+    const top = alerts
+      .filter((a) => !a.dismissed_at && !a.action_taken && (a.severity === 'danger' || a.severity === 'warn'))
+      .sort((a, b) => b.weight - a.weight)[0]
+    void notifyTopAlert(top ?? null)
+  }, [ready])
 
   // 테마와 금액 가리기는 body 클래스 하나로 끝낸다.
   useEffect(() => {

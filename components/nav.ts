@@ -3,6 +3,7 @@ import {
   IconBell,
   IconCheckSquare,
   IconFlow,
+  IconHeart,
   IconHome,
   IconPie,
   IconPlus,
@@ -38,7 +39,9 @@ export const MORE: NavItem[] = [
   { href: '/assets', label: '자산 · 부채', desc: '순자산 추이 · 상환 시뮬레이터', Icon: IconWallet },
   { href: '/business', label: '사업 지갑', desc: '세금 적립 · 미수금 · 실제 내 돈', Icon: IconBriefcase },
   { href: '/goals', label: '목표', desc: '월 필요 저축액 역산 · 행동으로 연결', Icon: IconTarget },
-  { href: '/monthly', label: '월간 결산', desc: '순자산 변동 · TOP5 · 다음 달 예산', Icon: IconCheckSquare },
+  { href: '/monthly', label: '월간 결산', desc: '순자산 변동 · TOP5 · 다음 달 예산', Icon: IconFlow },
+  { href: '/routines', label: '루틴', desc: '일 · 주 · 월 · 분기 체크리스트', Icon: IconCheckSquare },
+  { href: '/health', label: '재정 건강 점수', desc: '항목별 근거와 다음 행동', Icon: IconHeart },
   { href: '/alerts', label: '알림 기록', desc: '에이전트가 남긴 경고 전체', Icon: IconBell },
   { href: '/settings', label: '설정', desc: '세율 · 규칙 · PIN · 더미 데이터', Icon: IconSettings },
 ]

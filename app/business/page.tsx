@@ -243,7 +243,7 @@ export default function BusinessPage() {
         <CardHead title="이번 달 사업 비용" sub="연말 경비 정리는 여기서 시작한다" />
         <CardBody className="space-y-1.5 pt-2">
           {bizCats.length === 0 ? (
-            <p className="text-[12px] text-faint">사업으로 표시한 지출이 없다. 입력 화면의 "사업" 토글을 쓰면 된다.</p>
+            <p className="text-[12px] text-faint">사업으로 표시한 지출이 없다. 입력 화면의 &quot;사업&quot; 토글을 쓰면 된다.</p>
           ) : (
             bizCats.map((c) => (
               <div key={c.categoryId} className="flex items-center gap-2.5">
